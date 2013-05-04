@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style type="text/css">
+td {
+  text-align: right;
+}
+</style>
+<!-- JSBN -->
+<script type="text/javascript" src="jsbn/jsbn.js"></script>
+<script type="text/javascript" src="jsbn/jsbn2.js"></script>
+<script type="text/javascript" src="jsbn/prng4.js"></script>
+<script type="text/javascript" src="jsbn/rng.js"></script>
+<script type="text/javascript" src="jsbn/rsa.js"></script>
+<script type="text/javascript" src="jsbn/rsa2.js"></script>
+
+<!-- Forge -->
+<script type="text/javascript" src="forge/asn1.js"></script>
+<script type="text/javascript" src="forge/oids.js"></script>
+<script type="text/javascript" src="forge/aes.js"></script>
+<script type="text/javascript" src="forge/prng.js"></script>
+<script type="text/javascript" src="forge/sha1.js"></script>
+<script type="text/javascript" src="forge/util.js"></script>
+<script type="text/javascript" src="forge/random.js"></script>
+<script type="text/javascript" src="forge/rsa.js"></script>
+<script type="text/javascript" src="forge/pki.js"></script>
+
+<script type="text/javascript">
+'use strict';
+
+// var lengths = [512, 1024, 2048, 4096];
+var lengths = [512, 1024, 2048];
+var counts = {
+  512: 200,
+  1024: 50,
+  2048: 20,
+  4096: 5
+};
+
+var rawData = {
+  jsbn: {},
+  forge: {},
+};
+
+function runBench(bits, generator) {
+  var raw = new Array();
+  for (var i = 0; i < counts[bits]; i++) {
+    var before = new Date();
+    var output = generator(bits);
+    var after = new Date();
+    var time = (after - before);
+    raw.push(time);
+    console.log(bits, time);
+  }
+  return raw;
+}
+
+function generateJsbn(bits) {
+  var key = new RSAKey();
+  key.generate(bits, "10001");
+  return key;
+}
+
+function average(values) {
+  var sum = 0;
+  for (var i = 0; i < values.length; i++) {
+    sum += values[i];
+  }
+  return sum / values.length;
+}
+
+function runJsbn(bits, row) {
+  console.log('jsbn', bits)
+
+  var data = runBench(bits, generateJsbn);
+  rawData.jsbn[bits] = data;
+  row.cells[1].textContent = average(data);
+
+  // lengths = lengths.slice(1);
+  row.cells[2].textContent = 'RUNNING';
+  setTimeout(function() { runForge(bits, row); }, 0);
+}
+
+function runForge(bits, row) {
+  console.log('forge', bits);
+
+  var data = runBench(bits, forge.pki.rsa.generateKeyPair);
+  rawData.forge[bits] = data;
+  row.cells[2].textContent = average(data);
+
+  row.cells[3].textContent = '(' + counts[bits] + ' runs)';
+
+  lengths = lengths.slice(1);
+  setTimeout(startNextRow, 0);
+}
+
+function dumpData(data, element) {
+  for (var length in data) {
+    element.textContent += length + '\n';
+    for (var i = 0; i < data[length].length; i++) {
+      element.textContent += data[length][i] + ', ';
+    }
+    element.textContent += '\n\n';
+  }
+}
+
+function startNextRow() {
+  if (lengths.length == 0) {
+    dumpData(rawData.jsbn, document.getElementById('jsbnRaw'));
+    dumpData(rawData.forge, document.getElementById('forgeRaw'));
+
+    return;
+  }
+
+  var dataTable = document.getElementById('data');
+  var row = dataTable.insertRow(-1);
+  var lengthCell = row.insertCell(0);
+  var jsbnCell = row.insertCell(1);
+  var forgeCell = row.insertCell(2);
+  var noteCell = row.insertCell(3);
+
+  lengthCell.textContent = lengths[0];
+  row.cells[1].textContent = 'RUNNING';
+  setTimeout(function() {runJsbn(lengths[0], row);}, 10);
+}
+</script>
+</head>
+<body onload="startNextRow()">
+
+<table id="data">
+<tr><th>Key Length (bits)</th><th>JSBN</th><th>Forge</th><th>Runs</th></tr>
+</table>
+
+<h3>JSBN raw</h3>
+<pre id="jsbnRaw"></pre>
+
+<h3>Forge raw</h3>
+<pre id="forgeRaw"></pre>
+</body>
+</html>
