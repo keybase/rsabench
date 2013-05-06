@@ -1,20 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <style type="text/css">
 td {
   text-align: right;
 }
 </style>
 <!-- JSBN -->
+<!--
 <script type="text/javascript" src="jsbn/jsbn.js"></script>
 <script type="text/javascript" src="jsbn/jsbn2.js"></script>
 <script type="text/javascript" src="jsbn/prng4.js"></script>
 <script type="text/javascript" src="jsbn/rng.js"></script>
 <script type="text/javascript" src="jsbn/rsa.js"></script>
 <script type="text/javascript" src="jsbn/rsa2.js"></script>
-
+-->
 <!-- Forge -->
+<!--
 <script type="text/javascript" src="forge/asn1.js"></script>
 <script type="text/javascript" src="forge/oids.js"></script>
 <script type="text/javascript" src="forge/aes.js"></script>
@@ -22,9 +25,10 @@ td {
 <script type="text/javascript" src="forge/sha1.js"></script>
 <script type="text/javascript" src="forge/util.js"></script>
 <script type="text/javascript" src="forge/random.js"></script>
+<script type="text/javascript" src="forge/jsbn.js"></script>
 <script type="text/javascript" src="forge/rsa.js"></script>
 <script type="text/javascript" src="forge/pki.js"></script>
-
+-->
 <script type="text/javascript">
 'use strict';
 
@@ -34,7 +38,6 @@ var counts = {
   512: 200,
   1024: 50,
   2048: 20,
-  4096: 5
 };
 
 var rawData = {
@@ -42,56 +45,12 @@ var rawData = {
   forge: {},
 };
 
-function runBench(bits, generator) {
-  var raw = new Array();
-  for (var i = 0; i < counts[bits]; i++) {
-    var before = new Date();
-    var output = generator(bits);
-    var after = new Date();
-    var time = (after - before);
-    raw.push(time);
-    console.log(bits, time);
-  }
-  return raw;
-}
-
-function generateJsbn(bits) {
-  var key = new RSAKey();
-  key.generate(bits, "10001");
-  return key;
-}
-
 function average(values) {
   var sum = 0;
   for (var i = 0; i < values.length; i++) {
     sum += values[i];
   }
   return sum / values.length;
-}
-
-function runJsbn(bits, row) {
-  console.log('jsbn', bits)
-
-  var data = runBench(bits, generateJsbn);
-  rawData.jsbn[bits] = data;
-  row.cells[1].textContent = average(data);
-
-  // lengths = lengths.slice(1);
-  row.cells[2].textContent = 'RUNNING';
-  setTimeout(function() { runForge(bits, row); }, 0);
-}
-
-function runForge(bits, row) {
-  console.log('forge', bits);
-
-  var data = runBench(bits, forge.pki.rsa.generateKeyPair);
-  rawData.forge[bits] = data;
-  row.cells[2].textContent = average(data);
-
-  row.cells[3].textContent = '(' + counts[bits] + ' runs)';
-
-  lengths = lengths.slice(1);
-  setTimeout(startNextRow, 0);
 }
 
 function dumpData(data, element) {
@@ -104,11 +63,19 @@ function dumpData(data, element) {
   }
 }
 
+function postNext(type, bits) {
+  console.log('starting type:', type);
+  worker.postMessage({
+    type: type,
+    count: counts[bits],
+    bits: bits
+  });
+}
+
 function startNextRow() {
   if (lengths.length == 0) {
     dumpData(rawData.jsbn, document.getElementById('jsbnRaw'));
     dumpData(rawData.forge, document.getElementById('forgeRaw'));
-
     return;
   }
 
@@ -119,13 +86,53 @@ function startNextRow() {
   var forgeCell = row.insertCell(2);
   var noteCell = row.insertCell(3);
 
-  lengthCell.textContent = lengths[0];
-  row.cells[1].textContent = 'RUNNING';
-  setTimeout(function() {runJsbn(lengths[0], row);}, 10);
+  var bits = lengths.shift();
+  lengthCell.textContent = bits;
+  jsbnCell.textContent = 'RUNNING';
+  noteCell.textContent = row.cells[3].textContent = '(' + counts[bits] + ' runs)';
+
+  // handle the responses from the worker
+  dataHandler = function(data) {
+    rawData.jsbn[bits] = data;
+    jsbnCell.textContent = average(data);
+    forgeCell.textContent = 'RUNNING';
+    postNext('forge', bits);
+
+    dataHandler = function(data) {
+      rawData.forge[bits] = data;
+      forgeCell.textContent = average(data);
+      setTimeout(startNextRow, 100);
+    }
+  };
+
+  postNext('jsbn', bits);
 }
+
+// Start a web worker
+var dataHandler = null;
+var worker = new Worker('worker.js');
+worker.addEventListener('message', function (e) {
+  if (e.data.type == 'error') {
+    console.log('error from worker:', e.data.message);
+  } else if (e.data.type == 'response') {
+    console.log('got worker response length', e.data.data.length);
+    dataHandler(e.data.data);
+  } else if (e.data.request == 'log') {
+    console.log('worker log', e.data.message);
+  } else {
+    console.log('unknown message', e.data);
+  }
+}, false);
 </script>
 </head>
-<body onload="startNextRow()">
+<body>
+
+<h1>RSA Key Generation Benchmark</h1>
+
+<p>Tests generating RSA keys in a web worker, using Forge and JSBN</p>
+<p>Source: <a href="https://github.com/evanj/rsabench">https://github.com/evanj/rsabench</a> (<a href="https://github.com/digitalbazaar/forge/issues/28">Forge issue</a>)</p>
+
+<p><input type="button" onclick="startNextRow()" value="Start"></p>
 
 <table id="data">
 <tr><th>Key Length (bits)</th><th>JSBN</th><th>Forge</th><th>Runs</th></tr>
