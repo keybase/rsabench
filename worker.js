@@ -1,5 +1,18 @@
 'use strict';
 
+// fake console log for debugging
+var console;
+if (!console) {
+  console = {
+    log: function(message) {
+      self.postMessage({
+        request: 'log',
+        message: Array.prototype.slice.call(arguments)
+      });
+    }
+  };
+}
+
 // JSBN
 importScripts("jsbn/jsbn.js", "jsbn/jsbn2.js", "jsbn/prng4.js", "jsbn/rng.js", "jsbn/rsa.js",
   "jsbn/rsa2.js");
