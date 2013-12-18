@@ -106,10 +106,10 @@ function startNextRow() {
       rawData.forge[bits] = data;
       forgeCell.textContent = average(data);
       keybaseCell.textContent = 'RUNNING';
-      postNext('kebase', bits);
+      postNext('keybase', bits);
 
-      dateHandler = function (data) {
-	rawData.keybase[bits] = data;
+      dataHandler = function (data) {
+      	rawData.keybase[bits] = data;
         keybaseCell.textContent = average(data);
         setTimeout(startNextRow, 100);
     }
