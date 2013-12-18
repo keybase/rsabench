@@ -46,12 +46,12 @@ function run_keybase (e, self) {
    var raw = [];
    var i = 0;
    var run = function () {
-     if (i < e.data.count) {
+     if (i >= e.data.count) {
        self.postMessage({type:'response', data: raw});
      } else {
        i++;
        var before = new Date();
-       keybase.RSA.generate({nbits : e.data.bits}, function () {
+       keybase.rsa.RSA.generate({nbits : e.data.bits}, function () {
          var after = new Date();
          var time = after - before;
          raw.push(time);

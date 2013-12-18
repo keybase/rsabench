@@ -9,6 +9,7 @@ td {
 </style>
 <!-- JSBN -->
 <!--
+<script type="text/javascript" src="keybase.js"></script>
 <script type="text/javascript" src="jsbn/jsbn.js"></script>
 <script type="text/javascript" src="jsbn/jsbn2.js"></script>
 <script type="text/javascript" src="jsbn/prng4.js"></script>
@@ -28,17 +29,16 @@ td {
 <script type="text/javascript" src="forge/jsbn.js"></script>
 <script type="text/javascript" src="forge/rsa.js"></script>
 <script type="text/javascript" src="forge/pki.js"></script>
-<script type="text/javascript" src="keybase.js"></script>
 -->
+<script type="text/javascript" src="keybase.js"></script>
 <script type="text/javascript">
 'use strict';
 
+
 // var lengths = [512, 1024, 2048, 4096];
-var lengths = [512, 1024, 2048];
+var lengths = [2048];
 var counts = {
-  512: 200,
-  1024: 50,
-  2048: 20,
+  2048: 20
 };
 
 var rawData = {
@@ -74,6 +74,10 @@ function postNext(type, bits) {
   });
 }
 
+console.log("shit");
+console.log(keybase);
+
+
 function startNextRow() {
   if (lengths.length == 0) {
     dumpData(rawData.jsbn, document.getElementById('jsbnRaw'));
@@ -87,13 +91,13 @@ function startNextRow() {
   var lengthCell = row.insertCell(0);
   var jsbnCell = row.insertCell(1);
   var forgeCell = row.insertCell(2);
-  var keybaseCell = row.insertCell(2);
-  var noteCell = row.insertCell(3);
+  var keybaseCell = row.insertCell(3);
+  var noteCell = row.insertCell(4);
 
   var bits = lengths.shift();
   lengthCell.textContent = bits;
   jsbnCell.textContent = 'RUNNING';
-  noteCell.textContent = row.cells[3].textContent = '(' + counts[bits] + ' runs)';
+  noteCell.textContent = row.cells[4].textContent = '(' + counts[bits] + ' runs)';
 
   // handle the responses from the worker
   dataHandler = function(data) {
@@ -106,17 +110,39 @@ function startNextRow() {
       rawData.forge[bits] = data;
       forgeCell.textContent = average(data);
       keybaseCell.textContent = 'RUNNING';
-      postNext('keybase', bits);
-
-      dataHandler = function (data) {
-      	rawData.keybase[bits] = data;
-        keybaseCell.textContent = average(data);
-        setTimeout(startNextRow, 100);
+      run_keybase(bits,keybaseCell);
     }
-  };
-
+  }
   postNext('jsbn', bits);
-}
+};
+
+function run_keybase(bits,keybaseCell) {
+  console.log("shit shit shit");
+   var raw = [];
+   var i = 0;
+   var asp = new keybase.ASP({delay:0});
+   var run = function () {
+     console.log("run " + i);
+     if (i >= counts[bits]) {
+        console.log("shit ass");
+        console.log(raw);
+        rawData.keybase[bits] = raw;
+        keybaseCell.textContent = average(raw);
+        setTimeout(startNextRow, 100);
+     } else {
+       i++;
+       var before = new Date();
+       console.log("running bits " + bits)
+       keybase.RSA.generate({nbits : bits, asp: asp, iters: 3}, function () {
+         var after = new Date();
+         var time = after - before;
+         raw.push(time);
+         run();
+       });
+    }
+  }
+  run();
+};
 
 // Start a web worker
 var dataHandler = null;
@@ -145,7 +171,7 @@ worker.addEventListener('message', function (e) {
 <p><input type="button" onclick="startNextRow()" value="Start"></p>
 
 <table id="data">
-<tr><th>Key Length (bits)</th><th>JSBN</th><th>Forge</th><th>Runs</th></tr>
+<tr><th>Key Length (bits)</th><th>JSBN</th><th>Forge</th><th>Keybase</th><th>Runs</th></tr>
 </table>
 
 <h3>JSBN raw</h3>
@@ -157,3 +183,4 @@ worker.addEventListener('message', function (e) {
 <pre id="keybaseRaw"></pre>
 </body>
 </html>
+  
