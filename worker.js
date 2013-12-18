@@ -22,6 +22,8 @@ var window = {};  // hack so Forge will load
 importScripts("forge/asn1.js", "forge/oids.js", "forge/aes.js", "forge/prng.js", "forge/sha1.js",
   "forge/util.js", "forge/random.js", "forge/rsa.js", "forge/pki.js");
 
+importScripts("keybase.js");
+
 function runBench(bits, count, generator) {
   var raw = [];
   for (var i = 0; i < count; i++) {
@@ -40,12 +42,33 @@ function generateJsbn(bits) {
   return key;
 }
 
+function run_keybase (e, self) {
+   var raw = [];
+   var i = 0;
+   var run = function () {
+     if (i < e.data.count) {
+       self.postMessage({type:'response', data: raw});
+     } else {
+       i++;
+       var before = new Date();
+       keybase.RSA.generate({nbits : e.data.bits}, function () {
+         var after = new Date();
+         var time = after - before;
+         raw.push(time);
+       });
+    }
+  }
+};
+
 self.addEventListener('message', function(e) {
   var generator = null;
   if (e.data.type == 'jsbn') {
     generator = generateJsbn;
   } else if (e.data.type == 'forge') {
     generator = forge.pki.rsa.generateKeyPair;
+  } else if (e.data.type == 'keybase') {
+    run_keybase(e, self);
+    return;
   } else {
     self.postMessage({type: 'error', message: 'unknown type: ' + e.data.type});
   }

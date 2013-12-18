@@ -28,6 +28,7 @@ td {
 <script type="text/javascript" src="forge/jsbn.js"></script>
 <script type="text/javascript" src="forge/rsa.js"></script>
 <script type="text/javascript" src="forge/pki.js"></script>
+<script type="text/javascript" src="keybase.js"></script>
 -->
 <script type="text/javascript">
 'use strict';
@@ -43,6 +44,7 @@ var counts = {
 var rawData = {
   jsbn: {},
   forge: {},
+  keybase : {}
 };
 
 function average(values) {
@@ -76,6 +78,7 @@ function startNextRow() {
   if (lengths.length == 0) {
     dumpData(rawData.jsbn, document.getElementById('jsbnRaw'));
     dumpData(rawData.forge, document.getElementById('forgeRaw'));
+    dumpData(rawData.keybase, document.getElementById('keybaseRaw'));
     return;
   }
 
@@ -84,6 +87,7 @@ function startNextRow() {
   var lengthCell = row.insertCell(0);
   var jsbnCell = row.insertCell(1);
   var forgeCell = row.insertCell(2);
+  var keybaseCell = row.insertCell(2);
   var noteCell = row.insertCell(3);
 
   var bits = lengths.shift();
@@ -101,7 +105,13 @@ function startNextRow() {
     dataHandler = function(data) {
       rawData.forge[bits] = data;
       forgeCell.textContent = average(data);
-      setTimeout(startNextRow, 100);
+      keybaseCell.textContent = 'RUNNING';
+      postNext('kebase', bits);
+
+      dateHandler = function (data) {
+	rawData.keybase[bits] = data;
+        keybaseCell.textContent = average(data);
+        setTimeout(startNextRow, 100);
     }
   };
 
@@ -143,5 +153,7 @@ worker.addEventListener('message', function (e) {
 
 <h3>Forge raw</h3>
 <pre id="forgeRaw"></pre>
+<h3>Keybase raw</h3>
+<pre id="keybaseRaw"></pre>
 </body>
 </html>
